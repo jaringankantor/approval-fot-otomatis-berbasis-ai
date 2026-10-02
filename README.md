@@ -1,229 +1,247 @@
-# Approval Foto Otomatis Berbasis AI
+# Sistem Otomatisasi Verifikasi dan Kelayakan Pas Foto Berbasis AI
 
-Project ini menggunakan:
+Sistem ini merupakan kerangka kerja (*framework*) berbasis *Computer Vision* dan *Machine Learning* yang dirancang untuk memverifikasi serta menilai kelayakan pas foto formal secara otomatis. Sistem ini menggabungkan pendekatan *Deep Feature Extraction* dengan *One-Class Classification* dan analisis heuristik citra digital (*rule-based image processing*).
 
-- ResNet50 pretrained sebagai ekstraktor fitur foto approved.
-- One-Class SVM untuk mempelajari pola foto approved saja.
-- Heuristik tambahan untuk rekomendasi blur, pencahayaan, dan background.
-- Folder rejected digunakan untuk testing/evaluasi, bukan untuk melatih model utama.
+---
 
-## Struktur dataset
+## 1. Pendekatan dan Arsitektur Teknis
+
+Sistem menggunakan pendekatan hibrida (*hybrid approach*) yang menggabungkan kekuatan representasi fitur berbasis *deep learning* dan kecepatan komputasi pengolahan citra digital klasik:
+
+1. **Feature Extractor (ResNet50 Pre-trained)**:
+   - Menggunakan arsitektur ResNet50 yang telah dilatih pada ImageNet (*transfer learning*).
+   - Lapisan klasifikasi akhir (*fully connected layer*) dilepas (*headless model*), menghasilkan vektor representasi visual berdimensi 2048.
+2. **One-Class Classification (One-Class SVM)**:
+   - Menggunakan kernel RBF (*Radial Basis Function*) untuk memetakan distribusi pola pas foto yang memenuhi syarat (*approved*).
+   - Dipilih karena dalam studi kasus penerimaan dokumen/foto formal, kelas anomali (*rejected*) bersifat *open-set* (variasi kesalahan tidak terbatas dan tidak seimbang). Dengan demikian, model hanya memodelkan batas keputusan (*decision boundary*) dari kelas positif (*approved*).
+3. **Analisis Heuristik Citra Digital (Rule-Based Validation)**:
+   - **Deteksi Watermark & Teks Bawah**: Analisis morfologi biner dan *connected components* untuk mendeteksi teks stempel, nama sekolah, atau *banner* identitas di bagian bawah foto.
+   - **Validasi Rasio Aspek (Aspect Ratio)**: Verifikasi rasio potret standar 4:3 (toleransi deviasi ±10%).
+   - **Deteksi Wajah**: Memanfaatkan Haar Cascade classifier untuk memastikan keberadaan wajah tunggal yang proporsional.
+   - **Analisis Ketajaman (Blur Detection)**: Menghitung variansi operator Laplacian (skor rendah mengindikasikan citra buram/tidak fokus).
+   - **Analisis Pencahayaan (Brightness)**: Menghitung rata-rata intensitas *luminance* pada ruang warna keabuan (*grayscale*) untuk mendeteksi *underexposure* atau *overexposure*.
+   - **Keseragaman Latar Belakang (Background Uniformity)**: Menghitung variansi dan deviasi warna pada area tepi (*border*) atas, kiri, dan kanan.
+
+---
+
+## 2. Struktur Direktori dan Dataset
+
+Dataset diorganisasikan ke dalam dua direktori utama: `raw` (citra asli dengan resolusi variatif) dan `processed` (citra hasil standardisasi ukuran 300x400 piksel format RGB).
 
 ```text
 dataset/
 ├── raw/
 │   ├── training/
-│   │   └── approved-penerimaan/
+│   │   └── approved-penerimaan/   # Data latih pas foto approved asli
 │   ├── validation/
-│   │   └── approved/
+│   │   └── approved/              # Data validasi approved asli (untuk tuning threshold)
 │   └── testing/
-│       ├── approved/
-│       └── rejected/
+│       ├── approved/              # Data uji approved untuk evaluasi akhir
+│       └── rejected/              # Data uji rejected untuk evaluasi akhir
 └── processed/
     ├── training/
-    │   └── approved-penerimaan/
+    │   └── approved-penerimaan/   # Data latih setelah resize (300x400)
     ├── validation/
-    │   └── approved/
+    │   └── approved/              # Data validasi setelah resize (300x400)
     └── testing/
-        ├── approved/
-        └── rejected/
+        ├── approved/              # Data uji approved setelah resize (300x400)
+        └── rejected/              # Data uji rejected setelah resize (300x400)
 ```
 
-## Split training dan validation
+---
 
-Script `00_split_approved_dataset.py` digunakan untuk mengambil sebagian foto approved dari:
+## 3. Metodologi Pemisahan Data (Data Splitting)
 
-```text
-dataset/raw/training/approved-penerimaan
-```
+Pemisahan data dilakukan secara ketat untuk mencegah kebocoran data (*data leakage*) dan bias optimistik:
 
-lalu memindahkannya ke:
+Skrip `00_split_approved_dataset.py` memisahkan 20% data dari `dataset/raw/training/approved-penerimaan/` ke `dataset/raw/validation/approved/`.
 
-```text
-dataset/raw/validation/approved
-```
+- **Training Set**: Khusus digunakan untuk mengestimasi parameter model One-Class SVM dan *StandardScaler*.
+- **Validation Set**: Digunakan untuk menetapkan nilai ambang batas (*threshold*) penerimaan pada persentil tertentu (misalnya persentil ke-5). Penggunaan *validation set* independen sangat krusial agar *decision threshold* tidak *overfit* terhadap data latih.
+- **Testing Set**: Berisi data *approved* dan berbagai kategori *rejected* yang tidak pernah dilihat oleh model selama proses pelatihan maupun penentuan *threshold*. Digunakan murni untuk pelaporan metrik performa akhir (*unbiased evaluation*).
 
-Pemisahan ini penting karena `training` dan `validation` memiliki fungsi berbeda:
+> **Catatan Metodologis:** Skrip pemisahan data menggunakan operasi pemindahan file (`shutil.move`). Jalankan skrip ini hanya sekali saat folder validasi masih kosong.
 
-- `training`: dipakai untuk melatih One-Class SVM agar mengenali pola foto approved.
-- `validation`: dipakai untuk menentukan threshold penerimaan dari foto approved yang tidak ikut dilatih.
-- `testing`: dipakai untuk evaluasi akhir setelah model dan threshold selesai dibuat.
+---
 
-Jika training dan validation memakai foto yang sama, threshold bisa terlalu optimistis karena model diuji pada data yang sudah pernah dipelajari. Akibatnya hasil terlihat bagus di data lama, tetapi lebih mudah salah saat menerima foto baru.
+## 4. Instalasi dan Persiapan Lingkungan (Environment Setup)
 
-Jalankan script split hanya jika folder `dataset/raw/validation/approved` masih kosong atau belum dibuat. Script ini memakai `shutil.move`, sehingga file benar-benar dipindahkan dari training ke validation. Jika folder validation sudah berisi gambar, proses akan dibatalkan agar data validation tidak bertambah ganda.
+Disarankan menggunakan *virtual environment* terisolasi untuk menghindari konflik dependensi.
 
-## Instalasi
+### A. Membuat dan Mengaktifkan Virtual Environment
 
-Buat virtual environment terlebih dahulu dari root folder project sesuai OS yang digunakan.
-
-macOS:
-
+**macOS:**
 ```bash
 python3 -m venv env-mac
 source env-mac/bin/activate
 ```
 
-Linux:
-
+**Linux:**
 ```bash
 python3 -m venv env-linux
 source env-linux/bin/activate
 ```
 
-Windows Command Prompt:
-
+**Windows (Command Prompt):**
 ```bat
 py -m venv env-windows
 env-windows\Scripts\activate.bat
 ```
 
-Windows PowerShell:
-
+**Windows (PowerShell):**
 ```powershell
 py -m venv env-windows
 env-windows\Scripts\Activate.ps1
 ```
 
-Jika virtual environment sudah pernah dibuat, cukup aktifkan kembali.
+### B. Mengaktifkan Kembali Virtual Environment yang Sudah Ada
 
-macOS:
+- **macOS:** `source env-mac/bin/activate`
+- **Linux:** `source env-linux/bin/activate`
+- **Windows (CMD):** `env-windows\Scripts\activate.bat`
+- **Windows (PowerShell):** `env-windows\Scripts\Activate.ps1`
 
-```bash
-source env-mac/bin/activate
-```
+### C. Menginstal Dependensi
 
-Linux:
-
-```bash
-source env-linux/bin/activate
-```
-
-Windows Command Prompt:
-
-```bat
-env-windows\Scripts\activate.bat
-```
-
-Windows PowerShell:
-
-```powershell
-env-windows\Scripts\Activate.ps1
-```
-
-Setelah virtual environment aktif, install dependency:
+Setelah *virtual environment* aktif, pasang pustaka yang diperlukan:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Catatan: `joblib` biasanya ikut terpasang bersama scikit-learn, tetapi aman jika dipasang eksplisit.
+---
 
-## Konfigurasi environment
+## 5. Konfigurasi Environment (`.env`)
 
-Backend membaca konfigurasi dari file `.env`. File ini berisi data sensitif dan tidak boleh dibagikan.
-
-Contoh konfigurasi tersedia di `.env.example`.
+Layanan API membaca konfigurasi dari berkas `.env`. Salin templat `.env.example` ke `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Isi utama:
+Sesuaikan parameter berikut:
+- `API_KEY`: Kunci rahasia untuk autentikasi request ke layanan backend.
+- `API_KEY_HEADER_NAME`: Nama header HTTP untuk mengirim API Key (standar: `X-API-Key`).
+- `ALLOWED_ORIGINS`: Daftar domain frontend yang diizinkan untuk CORS (pisahkan dengan koma).
+- `APP_HOST`: Alamat IP host server (contoh: `0.0.0.0` atau `127.0.0.1`).
+- `APP_PORT`: Port jaringan server (standar: `8000`).
 
-- `API_KEY`: kunci rahasia untuk aplikasi internal yang akan mengakses backend.
-- `API_KEY_HEADER_NAME`: nama header HTTP untuk mengirim API key, default `X-API-Key`.
-- `ALLOWED_ORIGINS`: daftar origin frontend yang diizinkan untuk CORS, pisahkan dengan koma.
-- `APP_HOST`: host server FastAPI.
-- `APP_PORT`: port server FastAPI.
+---
 
-## Cara menjalankan
+## 6. Alur Eksekusi Pipeline (Pipeline Workflow)
 
-Dari root folder project, setelah virtual environment aktif:
+Jalankan tahapan pemrosesan data, pelatihan, dan evaluasi secara berurutan:
 
 ```bash
+# 1. Pisahkan 20% data approved untuk validasi independen
 python 00_split_approved_dataset.py
+
+# 2. Lakukan prapemrosesan dan standardisasi resolusi dataset ke 300x400 piksel RGB
 python 01_resize_all_dataset.py
+
+# 3. Ekstraksi vektor fitur visual 2048-D menggunakan ResNet50 pretrained
 python 02_extract_features.py
+
+# 4. Latih One-Class SVM dan hitung baseline threshold dari validation set
 python 03_train_oneclass_svm.py
+
+# 5. Uji inferensi pada satu sampel citra
 python 06_predict_photo.py dataset/raw/testing/approved/contoh.jpg
+
+# 6. Jalankan evaluasi menyeluruh pada seluruh testing set (approved & rejected)
 python 04_evaluate_testing.py
 ```
 
-Prediksi satu folder foto:
+### Inferensi Massal (Batch Prediction)
+Untuk memproses seluruh foto dalam suatu direktori sekaligus:
 
 ```bash
-python 06_predict_photo.py dataset/processed/testing/approved
+python 06_predict_photo.py dataset/raw/testing/approved
 ```
 
-Hasil prediksi massal akan disimpan ke:
-
+Hasil inferensi massal akan diekspor ke:
 - `results/batch_prediction_results.json`
 - `results/batch_prediction_results.csv`
 
-## Menjalankan backend FastAPI
+---
 
-Backend API tersedia di `07_backend_api.py`.
+## 7. Layanan REST API (FastAPI Backend)
 
-Jalankan server setelah virtual environment aktif:
+Implementasi backend siap produksi disediakan pada berkas `07_backend_api.py`.
+
+### Menjalankan Server API
 
 ```bash
 python 07_backend_api.py
 ```
 
-Atau langsung dengan Uvicorn:
+Atau menggunakan ASGI server Uvicorn secara langsung:
 
 ```bash
 uvicorn 07_backend_api:app --host 0.0.0.0 --port 8000
 ```
 
-Endpoint:
+Dokumentasi interaktif Swagger UI dapat diakses melalui browser pada URL: `http://localhost:8000/docs`.
 
-- `GET /health`: cek status server.
-- `POST /predict`: upload foto dengan `multipart/form-data`, field `photo`, wajib memakai header API key.
-- `POST /predict/base64`: kirim foto dalam JSON base64, wajib memakai header API key.
-- `GET /docs`: dokumentasi Swagger otomatis dari FastAPI.
+### Daftar Endpoint
 
-Contoh upload foto:
+| Metode | Endpoint | Deskripsi | Autentikasi |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Pemeriksaan status operasional layanan (*health check*) | Tidak |
+| `POST` | `/predict` | Analisis kelayakan foto via upload `multipart/form-data` | Ya (`X-API-Key`) |
+| `POST` | `/predict/base64` | Analisis kelayakan foto via JSON payload berformat Base64 | Ya (`X-API-Key`) |
 
+### Contoh Pengujian Request
+
+**1. Mengunggah Berkas Foto (`multipart/form-data`):**
 ```bash
-curl -H "X-API-Key: isi-api-key-dari-env" \
-  -F photo=@dataset/raw/testing/approved/f_foto-944210.jpg \
-  http://127.0.0.1:8000/predict
+curl -X POST "http://127.0.0.1:8000/predict" \
+  -H "X-API-Key: rahasia-api-key-anda" \
+  -F "photo=@dataset/raw/testing/approved/contoh.jpg"
 ```
 
-Contoh request JSON base64:
-
+**2. Mengirim Data Foto Base64 (JSON):**
 ```bash
-curl -H "X-API-Key: isi-api-key-dari-env" \
+curl -X POST "http://127.0.0.1:8000/predict/base64" \
+  -H "X-API-Key: rahasia-api-key-anda" \
   -H "Content-Type: application/json" \
-  -d '{"filename":"foto.jpg","image_base64":"base64-foto"}' \
-  http://127.0.0.1:8000/predict/base64
+  -d '{"filename": "foto.jpg", "image_base64": "<string_base64>"}'
 ```
 
-Opsional setelah melihat hasil evaluasi:
+---
 
-```bash
-python 05_tune_threshold.py
-```
+## 8. Evaluasi Model dan Eksperimen Tuning Threshold
 
-`04_evaluate_testing.py` aman dijalankan untuk mengukur performa pada data testing. Script ini hanya membaca model dan menyimpan hasil evaluasi ke `results/testing_evaluation.csv`.
+1. **Evaluasi Testing (`04_evaluate_testing.py`)**:
+   - Membaca model One-Class SVM dan ambang batas produksi dari `models/threshold.txt`.
+   - Menguji performa terhadap data testing *approved* dan *rejected*.
+   - Menyimpan metrik detail per foto ke `results/testing_evaluation.csv`.
 
-`05_tune_threshold.py` hanya digunakan untuk eksperimen mencari kandidat threshold dari hasil evaluasi testing. Secara default script ini tidak mengubah `models/threshold.txt`, tetapi menyimpan kandidat threshold ke `results/tuned_threshold.txt`.
+2. **Eksperimen Tuning Threshold (`05_tune_threshold.py`)**:
+   - Menganalisis kurva *trade-off* antara *False Acceptance Rate* (FAR) dan *False Rejection Rate* (FRR) dari hasil evaluasi testing.
+   - Menghasilkan kandidat ambang batas optimal yang disimpan di `results/tuned_threshold.txt`.
+   - Secara default, skrip ini **tidak menimpa** `models/threshold.txt` untuk menjaga validitas metodologis (menghindari *test-set snooping*).
 
-Jangan langsung memakai threshold dari testing sebagai threshold produksi, karena testing sebaiknya tetap menjadi data evaluasi akhir. Threshold produksi utama dibuat oleh `03_train_oneclass_svm.py` dari data validation. Jika benar-benar ingin menerapkan hasil tuning testing, jalankan:
+Jika peneliti/pengembang secara sadar ingin menerapkan threshold hasil *tuning* tersebut ke model produksi:
 
 ```bash
 python 05_tune_threshold.py --apply
 python 04_evaluate_testing.py
 ```
 
-## Interpretasi hasil prediksi
+---
 
-- `APPROVED`: foto mirip pola approved dan tidak melanggar aturan sederhana blur/pencahayaan/background.
-- `REJECTED`: foto dianggap tidak sesuai.
-- `recommendations`: alasan sederhana yang bisa ditampilkan ke pengguna.
+## 9. Struktur Respon Prediksi (Output Schema)
 
-## Catatan penting
+- **`APPROVED`**: Foto memenuhi seluruh kriteria heuristik (rasio 4:3, tanpa watermark bawah, wajah tunggal, tidak buram, pencahayaan cukup, latar belakang seragam) serta memiliki skor kemiripan fitur visual di atas *threshold*.
+- **`REJECTED`**: Foto melanggar satu atau lebih kriteria heuristik, atau skor kemiripan One-Class SVM berada di bawah *threshold*.
+- **`recommendations`**: Rangkaian pesan umpan balik terstruktur yang menerangkan parameter apa saja yang tidak memenuhi syarat (misal: rasio dimensi tidak sesuai, pencahayaan terlalu gelap, atau terdeteksi teks/watermark).
 
-One-Class SVM tidak belajar kategori rejected secara spesifik. Jika ingin klasifikasi penyebab reject secara lebih akurat, kumpulkan data rejected yang cukup per kategori lalu lanjutkan ke model supervised multi-class.
+---
+
+## 10. Catatan Akademis dan Batasan Sistem (Future Work)
+
+1. **Karakteristik One-Class Learning**: One-Class SVM mempelajari karakteristik intrinsik dari kelas normal (*approved*). Sistem tidak memodelkan kelas *rejected* secara eksplisit, melainkan mengidentifikasinya sebagai deviasi/pencilan (*outlier*).
+2. **Peluang Riset Lanjutan**:
+   - Apabila di masa mendatang data *rejected* telah terhimpun dalam kuantitas besar dan memiliki anotasi label yang seimbang per jenis kesalahan (misalnya: pose miring, latar belakang salah, pakaian non-formal), pendekatan dapat ditingkatkan menjadi *multi-class classification* atau *multi-task deep learning architecture*.
+   - Eksplorasi ekstraktor fitur berbasis *Vision Transformer* (ViT) atau arsitektur *face recognition representation* (seperti ArcFace/InsightFace) untuk meningkatkan diskriminasi pose dan ekspresi wajah.
