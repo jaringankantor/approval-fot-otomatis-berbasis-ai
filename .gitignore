@@ -1,0 +1,231 @@
+# ==============================================================================
+# .gitignore untuk Python Project (Data Science / Machine Learning / Computer Vision)
+# Mendukung: Windows, macOS, Linux, serta semua Code Editor & IDE populer
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. ENVIRONMENT VARIABLES & SECRETS
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.template
+*.local
+
+# ------------------------------------------------------------------------------
+# 2. PYTHON COMPILED FILES & CACHES
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+
+# ------------------------------------------------------------------------------
+# 3. VIRTUAL ENVIRONMENTS
+# ------------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+env-*/
+venv-*/
+.conda/
+conda/
+
+# ------------------------------------------------------------------------------
+# 4. PACKAGING, BUILDS & DISTRIBUTIONS
+# ------------------------------------------------------------------------------
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+develop-eggs/
+parts/
+var/
+sdist/
+wheelhouse/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# ------------------------------------------------------------------------------
+# 5. TESTING, COVERAGE & LINTERS
+# ------------------------------------------------------------------------------
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+nosetests.xml
+htmlcov/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+dmypy.json
+.dmypy.json
+
+# ------------------------------------------------------------------------------
+# 6. JUPYTER NOTEBOOKS & LAB
+# ------------------------------------------------------------------------------
+.ipynb_checkpoints/
+*-checkpoint.py
+.virtual_documents/
+
+# ------------------------------------------------------------------------------
+# 7. LOGS & TEMPORARY FILES
+# ------------------------------------------------------------------------------
+*.log
+*.pid
+*.seed
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# ------------------------------------------------------------------------------
+# 8. OPERATING SYSTEMS
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon?
+Icon
+
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.localized
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ------------------------------------------------------------------------------
+# 9. EDITORS & IDES
+# ------------------------------------------------------------------------------
+# Visual Studio Code & VSCodium
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+.ionide/
+
+# JetBrains (PyCharm, IntelliJ IDEA, CLion, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+cmake-build-*/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+sftp-config.json
+Package Control.cache/
+Package Control.last-run
+Package Control.ca-list
+
+# Eclipse & PyDev
+.project
+.pydevproject
+.classpath
+.settings/
+.metadata/
+
+# Vim & Neovim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+*.un~
+
+# Emacs
+\#*\#
+.\#*
+auto-save-list/
+tramp
+
+# Atom & TextMate
+.atom/
+*.tmproj
+*.tmproject
+.tmtags
+
+# Spyder
+.spyderproject
+.spyproject
+
+# AI Code Editors (Cursor, Windsurf, Fleet, Zed)
+.cursor/
+.windsurf/
+.fleet/
+.zed/
+
+# ------------------------------------------------------------------------------
+# 10. PROJECT-SPECIFIC DATA & ARTIFACTS (Machine Learning / Computer Vision)
+# ------------------------------------------------------------------------------
+# Dataset (abaikan file gambar dan data mentah, tetap pertahankan struktur folder via .gitkeep)
+dataset/**
+!dataset/**/
+!dataset/**/.gitkeep
+
+# Fitur ekstraksi (.npy, .txt, dsb.)
+features/**
+!features/**/
+!features/**/.gitkeep
+
+# Hasil prediksi & evaluasi (csv, json)
+results/**
+!results/**/
+!results/**/.gitkeep
+
+# Folder proses sementara & upload
+temp/**
+!temp/**/
+!temp/**/.gitkeep
+ratio_error/**
+!ratio_error/**/
+!ratio_error/**/.gitkeep
+uploads/
+outputs/
