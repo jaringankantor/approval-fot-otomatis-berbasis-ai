@@ -10,9 +10,9 @@ from src.config import (
 
 
 # ============================================================
-# Konfigurasi rasio portrait 4:3
-# RESIZE_WIDTH = 300, RESIZE_HEIGHT = 400
-# Target ratio = width / height = 300 / 400 = 0.75
+# Konfigurasi rasio foto potret 4:3
+# Standar dimensi: lebar 300 piksel, tinggi 400 piksel
+# Target rasio: lebar / tinggi = 300 / 400 = 0.75
 # ============================================================
 
 TARGET_RATIO = RESIZE_WIDTH / RESIZE_HEIGHT
@@ -23,8 +23,8 @@ MAX_RATIO = TARGET_RATIO * (1 + RATIO_TOLERANCE)
 
 
 # ============================================================
-# Threshold awal kualitas foto
-# Silakan disesuaikan setelah melihat hasil analisis dataset
+# Ambang batas awal penentuan kualitas foto
+# Nilai referensi untuk ketajaman (blur) dan pencahayaan (brightness)
 # ============================================================
 
 MIN_ACCEPTABLE_BLUR = 100
@@ -33,6 +33,12 @@ MAX_ACCEPTABLE_BRIGHTNESS = 180
 
 
 def calculate_blur_brightness_ratio(image_path):
+    """
+    Menghitung metrik kualitas foto:
+    - Tingkat ketajaman (variansi Laplacian)
+    - Rata-rata intensitas pencahayaan (brightness)
+    - Rasio aspek foto (lebar / tinggi)
+    """
     image = cv2.imread(str(image_path))
 
     if image is None:
@@ -58,6 +64,9 @@ def calculate_blur_brightness_ratio(image_path):
 
 
 def print_filename_list(title, items):
+    """
+    Menampilkan daftar nama file berdasarkan kategori tertentu.
+    """
     print(f"\n--- {title} ---")
 
     if not items:
@@ -69,6 +78,10 @@ def print_filename_list(title, items):
 
 
 def main():
+    """
+    Menjalankan proses analisis kualitas gambar pada folder dataset approved.
+    Mengevaluasi distribusi blur, brightness, dan rasio aspek.
+    """
     dataset_dir = RAW_TRAIN_APPROVED_DIR
 
     results = []
@@ -166,7 +179,7 @@ def main():
     )
 
     print_filename_list(
-        "FOTO DENGAN NILAI BRIGHNES TIDAK COCOK UNTUK DATASET",
+        "FOTO DENGAN NILAI BRIGHTNESS TIDAK COCOK UNTUK DATASET",
         invalid_brightness_files
     )
 
@@ -194,7 +207,7 @@ def main():
     else:
         print("Tidak ada.")
 
-    print("\n--- DETAIL FOTO DENGAN NILAI BRIGHNES TIDAK COCOK UNTUK DATASET ---")
+    print("\n--- DETAIL FOTO DENGAN NILAI BRIGHTNESS TIDAK COCOK UNTUK DATASET ---")
     if invalid_brightness_files:
         for item in sorted(invalid_brightness_files, key=lambda x: x["brightness"]):
             print(

@@ -9,9 +9,9 @@ from src.predictor import PhotoApprovalPredictor
 
 def print_result(result):
     """
-    Menampilkan hasil prediksi dalam format yang mudah dibaca.
-    Jika APPROVED, tampilkan hasil utama saja.
-    Jika REJECTED, tampilkan analisis yang bermasalah saja melalui recommendations.
+    Menampilkan ringkasan hasil prediksi ke terminal.
+    Untuk foto APPROVED, hanya informasi status dan kesesuaian pola yang ditampilkan.
+    Untuk foto REJECTED, detail penyebab penolakan dan rekomendasi perbaikan akan ditampilkan.
     """
     print("\n" + "=" * 70)
     print("HASIL PREDIKSI FOTO")
@@ -150,8 +150,12 @@ def collect_image_files(input_dir):
 
 
 def predict_single_file(predictor, input_photo_path):
-    # Prediksi langsung menggunakan foto asli.
-    # Jangan resize dulu, agar pengecekan rasio foto tetap akurat.
+    """
+    Menjalankan inferensi pada satu file foto, mencetak hasil ke terminal,
+    dan menyimpannya ke file JSON.
+    """
+    # Inferensi dilakukan langsung menggunakan file foto asli tanpa resize awal
+    # agar validasi rasio aspek foto tetap akurat sesuai dimensi aslinya.
     result = predictor.predict(input_photo_path)
 
     print_result(result)
@@ -163,6 +167,10 @@ def predict_single_file(predictor, input_photo_path):
 
 
 def predict_folder(predictor, input_dir):
+    """
+    Menjalankan inferensi secara massal (batch) pada seluruh foto di dalam folder,
+    mencetak ringkasan, serta mengekspor hasil ke format JSON dan CSV.
+    """
     image_files = collect_image_files(input_dir)
 
     if len(image_files) == 0:
@@ -203,6 +211,10 @@ def predict_folder(predictor, input_dir):
 
 
 def main():
+    """
+    Titik masuk utama CLI untuk memvalidasi argumen masukan (path file/folder)
+    dan mengarahkan eksekusi ke mode single-file atau batch-folder.
+    """
     if len(sys.argv) < 2:
         print("Gunakan perintah:")
         print("python 06_predict_photo.py path/ke/foto.jpg")

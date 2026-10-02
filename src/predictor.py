@@ -13,6 +13,11 @@ from src.feature_extractor import ResNet50FeatureExtractor
 
 
 class PhotoApprovalPredictor:
+    """
+    Kelas utama untuk memverifikasi dan memprediksi kelayakan pas foto formal.
+    Menggabungkan analisis heuristik citra digital (watermark, rasio, wajah, blur, pencahayaan, latar belakang)
+    dengan model machine learning (ResNet50 + One-Class SVM).
+    """
     def __init__(self):
         self.extractor = ResNet50FeatureExtractor()
 
@@ -36,8 +41,8 @@ class PhotoApprovalPredictor:
 
     def detect_bottom_watermark(self, image_path):
         """
-        Deteksi watermark/tulisan tambahan pada bagian bawah pas foto.
-        Contoh kasus: tulisan nama sekolah di bawah foto.
+        Mendeteksi keberadaan watermark, stempel, atau baris teks pada area bawah pas foto.
+        Misalnya teks nama sekolah, tanggal, atau atribut cetak lain di bagian bawah foto.
         """
         image = cv2.imread(str(image_path))
 
@@ -54,20 +59,20 @@ class PhotoApprovalPredictor:
         image = cv2.resize(image, (300, 400))
         h, w, _ = image.shape
 
-        # Fokus ke area paling bawah agar atribut seragam tidak terbaca sebagai watermark.
+        # Membatasi analisis pada area 12% terbawah foto agar pakaian seragam tidak salah terbaca sebagai watermark
         bottom_region = image[int(h * 0.88):h, 0:w]
 
         gray = cv2.cvtColor(bottom_region, cv2.COLOR_BGR2GRAY)
 
-        # Piksel gelap biasanya berasal dari teks hitam, tetapi bisa juga dari jas.
+        # Menghitung rasio piksel gelap (karakter teks umumnya berwarna gelap)
         dark_mask = gray < 95
         dark_ratio = float(np.mean(dark_mask))
 
-        # Kepadatan tepi membantu mendeteksi pola huruf.
+        # Menghitung kepadatan kontur tepi untuk mengenali pola teks atau huruf
         edges = cv2.Canny(gray, 70, 160)
         edge_ratio = float(np.mean(edges > 0))
 
-        # Cari komponen huruf gelap.
+        # Menerapkan segmentasi biner untuk menemukan kandidat komponen teks
         _, binary = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY_INV)
 
         kernel = np.ones((2, 2), np.uint8)
@@ -92,7 +97,7 @@ class PhotoApprovalPredictor:
             area = stats[i, cv2.CC_STAT_AREA]
             fill_ratio = area / (bw * bh)
 
-            # Abaikan blok besar seperti jas, dasi, atau bayangan.
+            # Mengabaikan blok area besar seperti jas, dasi, atau bayangan pakaian
             is_too_large_for_text = (
                 bh >= bottom_region.shape[0] * 0.55 or
                 bw >= w * 0.45 or
@@ -102,7 +107,7 @@ class PhotoApprovalPredictor:
             if is_too_large_for_text:
                 continue
 
-            # Komponen kecil/menengah yang mirip huruf.
+            # Menyaring komponen berukuran kecil hingga sedang yang memiliki ciri karakter huruf
             is_letter_like = (
                 8 <= area <= 650 and
                 5 <= bh <= 28 and
@@ -110,7 +115,7 @@ class PhotoApprovalPredictor:
                 0.08 <= fill_ratio <= 0.85
             )
 
-            # Komponen agak lebar, biasanya kata pendek atau gabungan huruf.
+            # Menyaring komponen memanjang yang memiliki ciri gabungan huruf atau kata pendek
             is_word_like = (
                 35 < bw <= 140 and
                 6 <= bh <= 32 and
@@ -130,7 +135,7 @@ class PhotoApprovalPredictor:
                 component_lefts.append(x)
                 component_rights.append(x + bw)
 
-        # Banyak contoh watermark memiliki strip putih bawah dengan teks hitam.
+        # Menghitung rasio warna putih terang pada dasar foto (ciri khas banner teks berlatar putih)
         white_ratio = float(np.mean(gray > 225))
 
         text_line_components = 0
@@ -195,14 +200,8 @@ class PhotoApprovalPredictor:
     
     def check_photo_ratio(self, image_path):
         """
-        Mengecek apakah rasio foto portrait 4x3.
-        Rasio portrait 4x3 berarti:
-        lebar : tinggi = 3 : 4
-        width / height = 0.75
-
-        Toleransi 10%:
-        batas bawah = 0.75 - 10%
-        batas atas   = 0.75 + 10%
+        Memeriksa kesesuaian rasio dimensi foto terhadap standar potret 4:3 (lebar : tinggi = 3 : 4 = 0.75).
+        Toleransi perbedaan rasio yang diizinkan adalah ±10% (0.675 hingga 0.825).
         """
         image = cv2.imread(str(image_path))
 
@@ -252,8 +251,8 @@ class PhotoApprovalPredictor:
 
     def detect_face(self, image_path):
         """
-        Deteksi keberadaan wajah menggunakan Haar Cascade OpenCV.
-        Dibuat toleran agar tidak mudah salah mendeteksi banyak wajah.
+        Mendeteksi keberadaan dan jumlah wajah menggunakan Haar Cascade classifier.
+        Dikonfigurasi agar toleran terhadap variasi minor namun tetap memastikan hanya ada satu wajah utama.
         """
         image = cv2.imread(str(image_path))
 
@@ -321,8 +320,8 @@ class PhotoApprovalPredictor:
 
     def calculate_blur_score(self, image_path):
         """
-        Menghitung tingkat blur.
-        Semakin kecil nilai blur_score, semakin buram foto.
+        Menghitung nilai skor ketajaman foto menggunakan variansi operator Laplacian.
+        Semakin rendah nilainya, semakin buram (blur) citra foto tersebut.
         """
         image = cv2.imread(str(image_path))
 
@@ -335,6 +334,9 @@ class PhotoApprovalPredictor:
         return float(blur_score)
 
     def analyze_blur(self, blur_score):
+        """
+        Mengevaluasi tingkat ketajaman foto berdasarkan nilai ambang batas blur.
+        """
         if blur_score < 50:
             return {
                 "blur_status": "BLUR",
@@ -354,8 +356,7 @@ class PhotoApprovalPredictor:
 
     def calculate_brightness_score(self, image_path):
         """
-        Menghitung rata-rata pencahayaan foto.
-        Nilai kecil berarti gelap, nilai besar berarti terlalu terang.
+        Menghitung intensitas rata-rata pencahayaan foto dalam format grayscale (0-255).
         """
         image = cv2.imread(str(image_path))
 
@@ -368,6 +369,9 @@ class PhotoApprovalPredictor:
         return float(brightness_score)
 
     def analyze_brightness(self, brightness_score):
+        """
+        Mengevaluasi kesesuaian tingkat pencahayaan foto (terlalu gelap, terlalu terang, atau memadai).
+        """
         if brightness_score < 70:
             return {
                 "brightness_status": "TOO_DARK",
@@ -387,10 +391,10 @@ class PhotoApprovalPredictor:
 
     def check_background_simple(self, image_path):
         """
-        Analisis background pas foto berdasarkan area yang biasanya kosong:
-        - pojok kiri atas
-        - pojok kanan atas
-        - tepi atas
+        Menganalisis keseragaman warna latar belakang (background) pada area atas foto:
+        - Pojok kiri atas
+        - Pojok kanan atas
+        - Area tepi atas
         """
         image = cv2.imread(str(image_path))
 
@@ -469,8 +473,8 @@ class PhotoApprovalPredictor:
         ai_rejected=False
     ):
         """
-        Analisis tambahan hanya dijalankan ketika hasil akhir adalah REJECTED.
-        Rekomendasi yang ditampilkan hanya yang bermasalah saja.
+        Menjalankan analisis diagnostik lanjutan ketika foto berstatus REJECTED.
+        Hanya indikator yang bermasalah yang akan dimasukkan ke dalam daftar rekomendasi perbaikan.
         """
         if watermark_result is None:
             watermark_result = self.detect_bottom_watermark(image_path)
@@ -490,36 +494,35 @@ class PhotoApprovalPredictor:
 
         recommendations = []
 
-        # 1. Watermark hanya ditampilkan jika bermasalah
+        # 1. Rekomendasi watermark: hanya ditambahkan jika terdeteksi watermark/teks
         if watermark_result["watermark_status"] == "DETECTED":
             recommendations.append(watermark_result["message"])
 
-        # 2. Rasio hanya ditampilkan jika bermasalah
+        # 2. Rekomendasi rasio: hanya ditambahkan jika rasio foto tidak sesuai format 4:3
         if ratio_result["ratio_status"] != "OK":
             recommendations.append(ratio_result["message"])
 
-        # 3. Pose ditampilkan jika AI menolak foto
+        # 3. Rekomendasi pose/postur: ditambahkan jika model AI menolak foto
         if ai_rejected:
             recommendations.append("Sesuaikan pose sesuai dengan contoh.")
 
-        # 4. Wajah hanya ditampilkan jika bermasalah
+        # 4. Rekomendasi deteksi wajah: hanya ditambahkan jika deteksi wajah tidak normal
         if face_result["face_status"] != "OK":
             recommendations.append(face_result["message"])
 
-        # 5. Blur hanya ditampilkan jika bermasalah
+        # 5. Rekomendasi ketajaman: hanya ditambahkan jika foto dinilai buram
         if blur_result["blur_status"] != "OK":
             recommendations.append(blur_result["message"])
 
-        # 6. Pencahayaan hanya ditampilkan jika bermasalah
+        # 6. Rekomendasi pencahayaan: hanya ditambahkan jika foto terlalu gelap atau terlalu terang
         if brightness_result["brightness_status"] != "OK":
             recommendations.append(brightness_result["message"])
 
-        # 7. Background hanya ditampilkan jika bermasalah
+        # 7. Rekomendasi latar belakang: hanya ditambahkan jika background tidak seragam
         if background_result["background_status"] != "OK":
             recommendations.append(background_result["message"])
 
-        # Jika tidak ada masalah spesifik terdeteksi,
-        # tetapi AI tetap menolak, tampilkan keterangan umum.
+        # Jika seluruh pemeriksaan heuristik lolos namun model AI menolak, berikan pesan penolakan umum
         if len(recommendations) == 0:
             recommendations.append(
                 "Foto ditolak oleh AI karena tidak sesuai dengan pola foto approved yang dipelajari sistem."
@@ -559,26 +562,28 @@ class PhotoApprovalPredictor:
         }
 
     def predict(self, image_path):
+        """
+        Menjalankan alur lengkap verifikasi foto:
+        1. Validasi keberadaan watermark atau teks tambahan pada bagian bawah.
+        2. Validasi rasio aspek dimensi potret 4:3.
+        3. Inferensi kesesuaian pola fitur visual menggunakan model One-Class SVM.
+        4. Menggabungkan hasil validasi menjadi status akhir (APPROVED / REJECTED).
+        5. Melakukan analisis diagnostik mendalam jika foto ditolak.
+        """
         image_path = Path(image_path)
 
         if not image_path.exists():
             raise FileNotFoundError(f"File foto tidak ditemukan: {image_path}")
 
-        # ============================================================
-        # 1. Cek watermark terlebih dahulu
-        # ============================================================
+        # Tahap 1: Pemeriksaan keberadaan teks/watermark pada area bawah
         watermark_result = self.detect_bottom_watermark(image_path)
         watermark_detected = watermark_result["watermark_status"] == "DETECTED"
 
-        # ============================================================
-        # 2. Cek rasio foto portrait 4x3
-        # ============================================================
+        # Tahap 2: Pemeriksaan kesesuaian rasio dimensi potret 4:3
         ratio_result = self.check_photo_ratio(image_path)
         ratio_invalid = ratio_result["ratio_status"] != "OK"
 
-        # ============================================================
-        # 3. AI ResNet50 + One-Class SVM memutuskan APPROVED / REJECTED
-        # ============================================================
+        # Tahap 3: Inferensi pola kesesuaian pas foto dengan ResNet50 + One-Class SVM
         feature = self.extractor.extract(str(image_path))
         feature = np.array(feature).reshape(1, -1)
         feature_scaled = self.scaler.transform(feature)
@@ -586,10 +591,8 @@ class PhotoApprovalPredictor:
         ai_score = self.model.decision_function(feature_scaled)[0]
         ai_status = "APPROVED" if ai_score >= self.threshold else "REJECTED"
 
-        # ============================================================
-        # 4. Tentukan status final
-        # Watermark dan rasio bisa memaksa REJECTED
-        # ============================================================
+        # Tahap 4: Penentuan keputusan status akhir
+        # Adanya watermark atau rasio yang tidak sesuai akan langsung menyebabkan status REJECTED
         rejection_sources = []
 
         if watermark_detected:
@@ -615,9 +618,7 @@ class PhotoApprovalPredictor:
             "threshold": float(self.threshold)
         }
 
-        # ============================================================
-        # 5. Jika APPROVED, tidak tampilkan keterangan tambahan
-        # ============================================================
+        # Tahap 5: Jika status akhir APPROVED, kembalikan hasil ringkas tanpa rincian penolakan
         if final_status == "APPROVED":
             result["message"] = "Foto diterima berdasarkan pemeriksaan format dan pola foto approved yang dipelajari AI."
             result["recommendations"] = [
@@ -625,9 +626,7 @@ class PhotoApprovalPredictor:
             ]
             return result
 
-        # ============================================================
-        # 6. Jika REJECTED, tampilkan keterangan yang bermasalah saja
-        # ============================================================
+        # Tahap 6: Jika status akhir REJECTED, sertakan analisis diagnostik dan rekomendasi perbaikan
         rejection_analysis = self.analyze_rejection_reasons(
             image_path=image_path,
             watermark_result=watermark_result,

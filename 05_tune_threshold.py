@@ -10,6 +10,10 @@ from src.config import (
 
 
 def read_scores_from_evaluation():
+    """
+    Membaca skor kemiripan AI (ai_similarity_score) dari file CSV hasil evaluasi,
+    lalu mengelompokkannya ke dalam array approved dan rejected.
+    """
     if not EVALUATION_RESULT_PATH.exists():
         raise FileNotFoundError(
             f"File evaluasi tidak ditemukan: {EVALUATION_RESULT_PATH}\n"
@@ -46,6 +50,9 @@ def read_scores_from_evaluation():
 
 
 def evaluate_threshold(threshold, approved_scores, rejected_scores):
+    """
+    Menghitung metrik performa (akurasi, false accept, false reject) untuk suatu kandidat threshold.
+    """
     approved_correct = np.sum(approved_scores >= threshold)
     rejected_correct = np.sum(rejected_scores < threshold)
 
@@ -68,6 +75,10 @@ def evaluate_threshold(threshold, approved_scores, rejected_scores):
 
 
 def main():
+    """
+    Mencari nilai ambang batas optimal yang memaksimalkan akurasi klasifikasi pada dataset evaluasi,
+    serta menyediakan opsi untuk memperbarui file model threshold.
+    """
     parser = argparse.ArgumentParser(
         description="Mencari kandidat threshold berdasarkan hasil evaluasi testing."
     )
@@ -103,7 +114,7 @@ def main():
         elif result["accuracy"] > best_result["accuracy"]:
             best_result = result
         elif result["accuracy"] == best_result["accuracy"]:
-            # Jika akurasi sama, pilih threshold yang false_accept lebih kecil.
+            # Jika nilai akurasi sama, utamakan threshold dengan false accept terendah
             if result["false_accept"] < best_result["false_accept"]:
                 best_result = result
 

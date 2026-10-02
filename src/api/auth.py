@@ -13,6 +13,10 @@ api_key_header = APIKeyHeader(
 
 
 def require_api_key(api_key: str = Security(api_key_header)):
+    """
+    Memvalidasi kunci API (API Key) dari header request HTTP.
+    Menggunakan secrets.compare_digest untuk mencegah serangan timing attack.
+    """
     if not API_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

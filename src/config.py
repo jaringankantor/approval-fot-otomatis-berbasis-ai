@@ -1,12 +1,11 @@
 from pathlib import Path
 
-# Root project
+# Direktori utama proyek
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # ============================================================
-# Dataset asli / raw
-# Folder ini diisi manual oleh Bapak.
+# Direktori dataset asli (raw)
 # ============================================================
 
 RAW_DATASET_DIR = BASE_DIR / "dataset" / "raw"
@@ -23,8 +22,7 @@ RAW_TESTING_REJECTED_DIR = RAW_TESTING_DIR / "rejected"
 
 
 # ============================================================
-# Dataset hasil resize / processed
-# Folder ini diisi otomatis oleh script resize.
+# Direktori dataset hasil prapemrosesan (processed)
 # ============================================================
 
 PROCESSED_DATASET_DIR = BASE_DIR / "dataset" / "processed"
@@ -41,7 +39,7 @@ TESTING_REJECTED_DIR = TESTING_DIR / "rejected"
 
 
 # ============================================================
-# Folder output
+# Direktori penyimpanan output
 # ============================================================
 
 MODELS_DIR = BASE_DIR / "models"
@@ -50,7 +48,7 @@ RESULTS_DIR = BASE_DIR / "results"
 
 
 # ============================================================
-# File model dan parameter
+# Path penyimpanan model dan parameter ambang batas
 # ============================================================
 
 SVM_MODEL_PATH = MODELS_DIR / "oneclass_svm.pkl"
@@ -59,7 +57,7 @@ THRESHOLD_PATH = MODELS_DIR / "threshold.txt"
 
 
 # ============================================================
-# File fitur hasil ekstraksi ResNet50
+# Path penyimpanan fitur hasil ekstraksi ResNet50
 # ============================================================
 
 TRAINING_FEATURES_PATH = FEATURES_DIR / "training_features.npy"
@@ -68,14 +66,14 @@ IMAGE_PATHS_PATH = FEATURES_DIR / "image_paths.txt"
 
 
 # ============================================================
-# File hasil evaluasi
+# Path penyimpanan laporan hasil evaluasi
 # ============================================================
 
 EVALUATION_RESULT_PATH = RESULTS_DIR / "testing_evaluation.csv"
 
 
 # ============================================================
-# Ukuran standar foto formal
+# Dimensi standar pas foto formal (lebar x tinggi)
 # ============================================================
 
 RESIZE_WIDTH = 300
@@ -83,7 +81,7 @@ RESIZE_HEIGHT = 400
 
 
 # ============================================================
-# Ekstensi gambar yang diterima
+# Format ekstensi gambar yang didukung
 # ============================================================
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")

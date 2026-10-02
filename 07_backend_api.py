@@ -31,6 +31,9 @@ app.add_middleware(
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Menyeragamkan format respon error HTTP dalam format JSON.
+    """
     if isinstance(exc.detail, dict):
         return JSONResponse(
             status_code=exc.status_code,
@@ -50,6 +53,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.get("/health", response_model=HealthResponse)
 def health_check():
+    """
+    Endpoint pemeriksaan status kesehatan server (health check).
+    """
     return {
         "status": "ok",
         "service": "photo-check-backend"
@@ -69,6 +75,10 @@ async def predict_photo(
     authorized: bool = Depends(require_api_key),
     photo: UploadFile = File(...)
 ):
+    """
+    Menerima unggahan file foto multipart/form-data, memproses validasi kualitas,
+    serta mengembalikan hasil klasifikasi kelayakan foto.
+    """
     try:
         image_bytes = await photo.read()
         result = predict_image_bytes(image_bytes, photo.filename)
@@ -108,6 +118,10 @@ def predict_photo_base64(
     request: Base64PhotoRequest,
     authorized: bool = Depends(require_api_key)
 ):
+    """
+    Menerima data foto dalam format string base64 via JSON payload,
+    memvalidasi kelayakan, dan mengembalikan hasil prediksi.
+    """
     try:
         image_bytes = decode_base64_photo(request.image_base64)
         result = predict_image_bytes(image_bytes, request.filename)

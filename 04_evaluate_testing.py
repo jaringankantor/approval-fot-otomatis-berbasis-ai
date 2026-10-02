@@ -27,6 +27,9 @@ TESTING_CLASSES = [
 
 
 def get_image_paths(folder_path):
+    """
+    Mengambil seluruh file gambar yang didukung dari folder target secara rekursif.
+    """
     folder_path = Path(folder_path)
 
     if not folder_path.exists():
@@ -43,6 +46,10 @@ def get_image_paths(folder_path):
 
 
 def evaluate():
+    """
+    Mengevaluasi kinerja model prediktor terhadap dataset testing (approved dan rejected),
+    menghitung akurasi, dan menyimpan detail hasil prediksi ke dalam file CSV.
+    """
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
     predictor = PhotoApprovalPredictor()
@@ -87,8 +94,8 @@ def evaluate():
                 "threshold": result.get("threshold"),
                 "message": result.get("message", ""),
 
-                # Kolom-kolom di bawah ini hanya terisi jika AI memutuskan REJECTED.
-                # Jika APPROVED, nilainya akan kosong.
+                # Kolom-kolom diagnostik di bawah ini hanya terisi jika foto berstatus REJECTED.
+                # Untuk foto dengan status APPROVED, nilai kolom ini dibiarkan kosong.
                 "face_status": result.get("face_status", ""),
                 "face_count": result.get("face_count", ""),
                 "blur_score": result.get("blur_score", ""),

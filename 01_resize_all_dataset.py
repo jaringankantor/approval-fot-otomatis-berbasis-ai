@@ -10,11 +10,15 @@ from src.config import (
     IMAGE_EXTENSIONS
 )
 
-# Agar PIL lebih toleran terhadap gambar yang sedikit truncated
+# Mengizinkan pustaka PIL memproses file gambar yang sedikit rusak atau terpotong (truncated)
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def remove_file(path):
+    """
+    Menghapus file secara aman. Jika terdapat kendala izin akses (misalnya akibat penguncian file),
+    izin tulis akan diberikan terlebih dahulu sebelum mencoba menghapus kembali.
+    """
     try:
         path.unlink()
     except PermissionError:
@@ -26,24 +30,26 @@ def remove_file(path):
         except PermissionError as error:
             raise PermissionError(
                 f"File tidak bisa dihapus: {path}. "
-                "Tutup file jika sedang dibuka atau tunggu sinkronisasi Google Drive selesai."
+                "Tutup file jika sedang dibuka atau tunggu sinkronisasi penyimpanan selesai."
             ) from error
 
 
 def remove_empty_directory(path):
+    """
+    Menghapus folder kosong. Jika folder terkunci atau dibatasi oleh sistem, operasi akan dilewati.
+    """
     try:
         os.chmod(path, stat.S_IWRITE)
         path.rmdir()
     except OSError:
-        # Folder kosong yang read-only/terkunci boleh ditinggalkan.
-        # File di dalamnya sudah dihapus oleh remove_file.
+        # Folder kosong yang terkunci dilewati karena seluruh file di dalamnya telah dihapus
         pass
 
 
 def clear_processed_dataset():
     """
-    Menghapus isi folder output processed sebelum resize ulang.
-    Folder utamanya tetap dipertahankan.
+    Mengosongkan isi folder dataset processed sebelum proses pengubahan ukuran dimulai.
+    Struktur direktori utama tetap dipertahankan.
     """
     if not PROCESSED_DATASET_DIR.exists():
         PROCESSED_DATASET_DIR.mkdir(parents=True, exist_ok=True)
@@ -68,6 +74,10 @@ def clear_processed_dataset():
 
 
 def resize_image(input_path, output_path):
+    """
+    Mengubah ukuran gambar ke resolusi standar (300x400 piksel) dengan format warna RGB.
+    Mengembalikan status keberhasilan (bool) dan pesan kesalahan jika gagal.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -84,6 +94,10 @@ def resize_image(input_path, output_path):
 
 
 def resize_all_dataset():
+    """
+    Memproses seluruh file gambar di folder dataset raw, mengubah ukurannya,
+    dan menyimpannya ke folder dataset processed dengan struktur folder yang sama.
+    """
     if not RAW_DATASET_DIR.exists():
         raise FileNotFoundError(f"Folder tidak ditemukan: {RAW_DATASET_DIR}")
 

@@ -6,14 +6,16 @@ from torchvision import models, transforms
 
 
 class ResNet50FeatureExtractor:
+    """
+    Ekstraktor fitur visual menggunakan arsitektur deep learning ResNet50 pretrained.
+    """
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         weights = models.ResNet50_Weights.DEFAULT
         model = models.resnet50(weights=weights)
 
-        # Hilangkan layer klasifikasi terakhir.
-        # Output menjadi fitur 2048 dimensi.
+        # Menghapus layer klasifikasi terakhir agar menghasilkan representasi fitur berdimensi 2048
         self.model = torch.nn.Sequential(*list(model.children())[:-1])
         self.model.to(self.device)
         self.model.eval()
@@ -28,6 +30,10 @@ class ResNet50FeatureExtractor:
         ])
 
     def extract(self, image_path):
+        """
+        Mengekstraksi vektor embedding fitur dari gambar input.
+        Mengembalikan array numpy float32 dengan bentuk (2048,).
+        """
         image = Image.open(image_path).convert("RGB")
         image_tensor = self.transform(image).unsqueeze(0).to(self.device)
 

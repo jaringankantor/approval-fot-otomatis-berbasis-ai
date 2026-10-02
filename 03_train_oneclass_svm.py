@@ -14,14 +14,18 @@ from src.config import (
 )
 
 
-# Parameter One-Class SVM
-# nu = perkiraan proporsi data yang dianggap outlier
-# gamma = pengaruh jarak antar fitur
+# Parameter model One-Class SVM:
+# nu: estimasi proporsi pencilan (outlier) yang ditoleransi pada data latih
+# gamma: penyesuaian koefisien kernel RBF terhadap variansi fitur
 OCSVM_NU = 0.05
 OCSVM_GAMMA = "scale"
 
 
 def main():
+    """
+    Melatih model One-Class SVM menggunakan fitur data latih yang telah distandardisasi,
+    menghitung nilai ambang batas (threshold) dari data validasi, lalu menyimpan model, scaler, dan threshold.
+    """
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Memuat fitur training dan validation...")
@@ -54,8 +58,8 @@ def main():
 
     validation_scores = model.decision_function(validation_features_scaled)
 
-    # Threshold dibuat dari skor validation approved.
-    # Nilai percentile rendah membuat sistem lebih ketat.
+    # Menghitung ambang batas (threshold) dari persentil ke-5 skor data validasi approved.
+    # Nilai persentil yang lebih rendah menghasilkan standar penerimaan yang lebih ketat.
     threshold = np.percentile(validation_scores, 5)
 
     print(f"Skor validation minimum : {validation_scores.min()}")

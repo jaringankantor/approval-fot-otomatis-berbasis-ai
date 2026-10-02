@@ -16,7 +16,7 @@ from src.feature_extractor import ResNet50FeatureExtractor
 
 def get_image_paths(folder_path):
     """
-    Mengambil semua path gambar dari folder tertentu.
+    Mengambil dan mengurutkan seluruh path file gambar dari direktori yang ditentukan.
     """
     folder_path = Path(folder_path)
 
@@ -34,7 +34,8 @@ def get_image_paths(folder_path):
 
 def extract_features_from_paths(image_paths, extractor):
     """
-    Melakukan ekstraksi fitur dari daftar path gambar.
+    Mengekstraksi vektor fitur visual dari daftar path gambar menggunakan model yang disediakan.
+    Mengembalikan array numpy berisi kumpulan fitur dan daftar path yang berhasil diproses.
     """
     features = []
     valid_paths = []
@@ -59,7 +60,7 @@ def extract_features_from_paths(image_paths, extractor):
 
 def save_image_paths(training_paths, validation_paths):
     """
-    Menyimpan daftar path gambar yang berhasil diekstraksi.
+    Menyimpan daftar path gambar training dan validation yang berhasil diekstraksi ke file teks.
     """
     with open(IMAGE_PATHS_PATH, "w", encoding="utf-8") as file:
         file.write("[TRAINING APPROVED]\n")
@@ -72,6 +73,10 @@ def save_image_paths(training_paths, validation_paths):
 
 
 def main():
+    """
+    Menjalankan proses ekstraksi fitur visual untuk dataset training approved dan validation approved,
+    kemudian menyimpan hasilnya dalam format file numpy (.npy).
+    """
     FEATURES_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Memulai ekstraksi fitur menggunakan ResNet50 pretrained...")
